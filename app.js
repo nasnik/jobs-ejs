@@ -1,85 +1,86 @@
-const express = require("express");
-require("express-async-errors");
-
+const express = require('express');
+require('express-async-errors');
 const app = express();
+const flash = require('connect-flash');
+app.use(flash());
+// Load environment variables
+require('dotenv').config();
 
-app.set("view engine", "ejs");
-app.use(require("body-parser").urlencoded({ extended: true }));
+// Set EJS as the view engine
+app.set('view engine', 'ejs'); // Ensure this line is present
+app.set('views', './views');   // Specify the views directory
 
-require("dotenv").config(); // to load the .env file into the process.env object
-const session = require("express-session");
+// Middleware for parsing request bodies
+app.use(express.urlencoded({ extended: true }));
 
-const MongoDBStore = require("connect-mongodb-session")(session);
+// Session management
+const session = require('express-session');
+const MongoDBStore = require('connect-mongodb-session')(session);
 const url = process.env.MONGO_URI;
-
 const store = new MongoDBStore({
-    // may throw an error, which won't be caught
     uri: url,
-    collection: "mySessions",
+    collection: 'mySessions',
 });
-store.on("error", function (error) {
+store.on('error', function (error) {
     console.log(error);
 });
 
-const sessionParms = {
+const sessionParams = {
     secret: process.env.SESSION_SECRET,
     resave: true,
     saveUninitialized: true,
     store: store,
-    cookie: { secure: false, sameSite: "strict" },
+    cookie: { secure: false, sameSite: 'strict' },
 };
 
-if (app.get("env") === "production") {
-    app.set("trust proxy", 1); // trust first proxy
-    sessionParms.cookie.secure = true; // serve secure cookies
+if (app.get('env') === 'production') {
+    app.set('trust proxy', 1); // Trust first proxy
+    sessionParams.cookie.secure = true; // Serve secure cookies
 }
 
-app.use(session(sessionParms));
+app.use(session(sessionParams));
 
-app.use(require("connect-flash")());
+// Flash messages
+app.use(require('connect-flash')());
 
-
-
-// secret word handling
-//let secretWord = "syzygy";
-app.get("/secretWord", (req, res) => {
-    if (!req.session.secretWord) {
-        req.session.secretWord = "syzygy";
-    }
-    res.locals.info = req.flash("info");
-    res.locals.errors = req.flash("error");
-    res.render("secretWord", { secretWord: req.session.secretWord });
-});
-app.post("/secretWord", (req, res) => {
-    if (req.body.secretWord.toUpperCase()[0] == "P") {
-        req.flash("error", "That word won't work!");
-        req.flash("error", "You can't use words that start with p.");
-    } else {
-        req.session.secretWord = req.body.secretWord;
-        req.flash("info", "The secret word was changed.");
-    }
-    res.redirect("/secretWord");
+// Attach flash messages to locals using express-messages
+app.use((req, res, next) => {
+    res.locals.messages = require('express-messages')(req, res);
+    next();
 });
 
+// Passport.js initialization
+const passport = require('passport');
+require('./passport/passportInit')();
+app.use(passport.initialize());
+app.use(passport.session());
+app.use(require('./middleware/storeLocals'));
+// Routes
+app.use('/sessions', require('./routes/sessionRoutes'));
+app.use('/secretWord', require('./middleware/auth'), require('./routes/secretWord'));
+
+// Default route
+app.get('/', (req, res) => {
+    res.render('index'); // Render the EJS template
+});
+
+// Error handling
 app.use((req, res) => {
     res.status(404).send(`That page (${req.url}) was not found.`);
 });
-
 app.use((err, req, res, next) => {
     res.status(500).send(err.message);
-    console.log(err);
+    console.error(err);
 });
 
+// Start server
 const port = process.env.PORT || 3000;
-
 const start = async () => {
     try {
-        app.listen(port, () =>
-            console.log(`Server is listening on port ${port}...`)
-        );
+        await require('./db/connect')(process.env.MONGO_URI);
+        app.listen(port, () => console.log(`Server is listening on port ${port}...`));
     } catch (error) {
-        console.log(error);
+        console.error(error);
     }
 };
-
 start();
