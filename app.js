@@ -5,7 +5,8 @@ const flash = require('connect-flash');
 app.use(flash());
 // Load environment variables
 require('dotenv').config();
-
+const csrf = require('host-csrf');
+const cookieParser = require('cookie-parser');
 // Set EJS as the view engine
 app.set('view engine', 'ejs'); // Ensure this line is present
 app.set('views', './views');   // Specify the views directory
@@ -33,15 +34,29 @@ const sessionParams = {
     cookie: { secure: false, sameSite: 'strict' },
 };
 
+const csrfOptions = {
+    protected_operations: ['POST'],
+    protected_content_types: [
+        'application/json',
+        'application/x-www-form-urlencoded'
+    ],
+    development_mode: true
+};
+
 if (app.get('env') === 'production') {
-    app.set('trust proxy', 1); // Trust first proxy
-    sessionParams.cookie.secure = true; // Serve secure cookies
+    sessionParams.cookie.secure = true;
+    csrfOptions.development_mode = false;
 }
 
 app.use(session(sessionParams));
 
 // Flash messages
 app.use(require('connect-flash')());
+//csrf
+app.use(cookieParser(process.env.SESSION_SECRET));
+const csrfMiddleware = csrf(csrfOptions);
+app.use(csrfMiddleware);
+
 
 // Attach flash messages to locals using express-messages
 app.use((req, res, next) => {
@@ -60,10 +75,13 @@ app.use('/sessions', require('./routes/sessionRoutes'));
 app.use('/secretWord', require('./middleware/auth'), require('./routes/secretWord'));
 
 // Default route
-app.get('/', (req, res) => {
-    res.render('index'); // Render the EJS template
-});
 
+//csrf get
+app.get('/', (req, res) => {
+    // initial CSRF token depends on user going to home page first
+    csrf.token(req, res);
+    res.render('index');
+});
 // Error handling
 app.use((req, res) => {
     res.status(404).send(`That page (${req.url}) was not found.`);
