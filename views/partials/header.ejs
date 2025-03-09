@@ -6,7 +6,7 @@
         <button>Logoff</button>
     </form>
 <% } %>
-<% if (errors) {
+<% if (errors && Array.isArray(errors)) {
 errors.forEach((err) => { %>
     <div>
         Error: <%= err %>

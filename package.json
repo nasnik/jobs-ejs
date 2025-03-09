@@ -1,10 +1,10 @@
 {
   "name": "1-29-25-jobs-ejs",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
     "dev": "nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha --exit --timeout 10000"
   },
   "author": "",
   "license": "ISC",
@@ -29,7 +29,10 @@
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
+    "chai": "^4.2.0",
+    "chai-http": "^4.3.0",
     "eslint": "^9.19.0",
+    "mocha": "^10.4.0",
     "nodemon": "^3.1.9",
     "prettier": "^3.4.2"
   }
