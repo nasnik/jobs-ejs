@@ -2,6 +2,10 @@ const express = require("express");
 const router = express.Router();
 
 router.get("/", (req, res) => {
+    if (!req.user) { // Corrected: Check for req.user
+        return res.redirect("/sessions/logon");
+    }
+
     if (!req.session.secretWord) {
         req.session.secretWord = "syzygy";
     }
@@ -10,6 +14,10 @@ router.get("/", (req, res) => {
 });
 
 router.post("/", (req, res) => {
+    if (!req.user) { // Corrected: Check for req.user
+        return res.redirect("/sessions/logon");
+    }
+
     if (req.body.secretWord.toUpperCase()[0] == "P") {
         req.flash("error", "That word won't work!");
         req.flash("error", "You can't use words that start with p.");
